@@ -297,6 +297,7 @@ func (j *Job) mainHashArgs() []interface{} {
 		"started", j.started,
 		"finished", j.finished,
 		"poolId", j.poolId,
+		"poolKey", j.typ.PoolKey,
 	}
 	if j.err != nil {
 		hashArgs = append(hashArgs, "error", j.err.Error())

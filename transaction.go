@@ -268,7 +268,7 @@ func (t *transaction) retryOrFailJob(job *Job, handler replyHandler) {
 // The script will atomically update the status of the job, removing it from its old status set and
 // adding it to the new one.
 func (t *transaction) setStatus(job *Job, status Status) {
-	t.script(setJobStatusScript, redis.Args{job.id, string(status)}, nil)
+	t.script(setJobStatusScript, redis.Args{job.id, string(status), job.typ.PoolKey}, nil)
 }
 
 // destroyJob is a small function wrapper around destroyJobScript.

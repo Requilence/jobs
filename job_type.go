@@ -13,9 +13,12 @@ import (
 // Types is map of job type names to *Type
 var Types = map[string]*Type{}
 
+// Pools is map of pool names to *P
+var Pools = map[string]*Pool{}
 // Type represents a type of job that can be executed by workers
 type Type struct {
 	name     string
+	PoolKey  string
 	handler  interface{}
 	retries  uint
 	dataType reflect.Type
@@ -52,6 +55,18 @@ type HandlerFunc interface{}
 // data with the same type as the first argument to handler, or nil if the handler
 // accepts no arguments.
 func RegisterType(name string, retries uint, handler HandlerFunc) (*Type, error) {
+	return RegisterTypeWithPoolKey(name, "", retries, handler)
+}
+
+// RegisterType registers a new type of job that can be executed by workers.
+// name should be a unique string identifier for the job.
+// retries is the number of times this type of job should be retried if it fails.
+// handler is a function that a worker will call in order to execute the job.
+// handler should be a function which accepts either 0 or 1 arguments of any type,
+// corresponding to the data for a job of this type. All jobs of this type must have
+// data with the same type as the first argument to handler, or nil if the handler
+// accepts no arguments.
+func RegisterTypeWithPoolKey(name string, poolKey string, retries uint, handler HandlerFunc) (*Type, error) {
 	// Make sure name is unique
 	if _, found := Types[name]; found {
 		return Types[name], newErrorNameAlreadyRegistered(name)
@@ -71,6 +86,7 @@ func RegisterType(name string, retries uint, handler HandlerFunc) (*Type, error)
 		return nil, fmt.Errorf("jobs: in RegisterNewType, handler must return an error. Got return value of type %s.", handlerType.Out(0).String())
 	}
 	Type := &Type{
+		PoolKey: poolKey,
 		name:    name,
 		handler: handler,
 		retries: retries,
