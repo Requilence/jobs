@@ -15,9 +15,10 @@ import (
 // The jobs chan is shared between all jobs. To stop the worker,
 // simply close the jobs channel.
 type worker struct {
-	jobs      chan *Job
-	wg        *sync.WaitGroup
-	afterFunc func(*Job)
+	jobs           chan *Job
+	wg             *sync.WaitGroup
+	afterFunc      func(*Job)
+	middlewareFunc func(chan bool, *Job, *[]reflect.Value)
 }
 
 // start starts a goroutine in which the worker will continuously
@@ -34,8 +35,15 @@ func (w *worker) start() {
 // doJob executes the given job. It also sets the status and timestamps for
 // the job appropriately depending on the outcome of the execution.
 func (w *worker) doJob(job *Job) {
+	channel := make(chan bool)
+
 	if w.afterFunc != nil {
 		defer w.afterFunc(job)
+	}
+	if w.middlewareFunc != nil {
+		defer func() {
+			channel <- true
+		}()
 	}
 
 	defer func() {
@@ -80,6 +88,11 @@ func (w *worker) doJob(job *Job) {
 	}
 	// Call the handler using the arguments we just instantiated
 	handlerVal := reflect.ValueOf(job.typ.handler)
+	if w.middlewareFunc != nil {
+		go w.middlewareFunc(channel, job, &handlerArgs)
+		<-channel
+	}
+	//	d := handlerArgs[0]
 	returnVals := handlerVal.Call(handlerArgs)
 	// Set the finished timestamp
 	job.finished = time.Now().UTC().UnixNano()

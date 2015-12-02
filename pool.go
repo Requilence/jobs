@@ -7,6 +7,7 @@ package jobs
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"runtime"
 	"sync"
 	"time"
@@ -33,6 +34,8 @@ type Pool struct {
 	// exit is used to signal the pool to stop running the query loop
 	// and close the jobs channel
 	exit chan bool
+	// beforeFunc is a function that gets called before each job.
+	middlewareFunc func(chan bool, *Job, *[]reflect.Value)
 	// afterFunc is a function that gets called after each job.
 	afterFunc func(*Job)
 	// RWMutex is only used during testing when we need to
@@ -341,6 +344,11 @@ func (p *Pool) removeStaleSelf() error {
 	return nil
 }
 
+// SetMiddleware will assign a function that will start goroutine before job is started and closed after job is ended
+func (p *Pool) SetMiddleware(f func(chan bool, *Job, *[]reflect.Value)) {
+	p.middlewareFunc = f
+}
+
 // SetAfterFunc will assign a function that will be executed each time
 // a job is finished.
 func (p *Pool) SetAfterFunc(f func(*Job)) {
@@ -381,9 +389,10 @@ func (p *Pool) Start() error {
 	for i := range p.workers {
 		p.wg.Add(1)
 		worker := &worker{
-			wg:        p.wg,
-			jobs:      p.jobs,
-			afterFunc: p.afterFunc,
+			wg:             p.wg,
+			jobs:           p.jobs,
+			afterFunc:      p.afterFunc,
+			middlewareFunc: p.middlewareFunc,
 		}
 		p.workers[i] = worker
 		worker.start()
