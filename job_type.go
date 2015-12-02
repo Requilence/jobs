@@ -76,9 +76,6 @@ func RegisterTypeWithPoolKey(name string, poolKey string, retries uint, handler 
 	if handlerType.Kind() != reflect.Func {
 		return nil, fmt.Errorf("jobs: in RegisterNewType, handler must be a function. Got %T", handler)
 	}
-	if handlerType.NumIn() > 1 {
-		return nil, fmt.Errorf("jobs: in RegisterNewType, handler must accept 0 or 1 arguments. Got %d.", handlerType.NumIn())
-	}
 	if handlerType.NumOut() != 1 {
 		return nil, fmt.Errorf("jobs: in RegisterNewType, handler must have exactly one return value. Got %d.", handlerType.NumOut())
 	}
@@ -91,21 +88,18 @@ func RegisterTypeWithPoolKey(name string, poolKey string, retries uint, handler 
 		handler: handler,
 		retries: retries,
 	}
-	if handlerType.NumIn() == 1 {
-		Type.dataType = handlerType.In(0)
-	}
+
 	Types[name] = Type
 	return Type, nil
 }
-
 var errorType = reflect.TypeOf(make([]error, 1)).Elem()
-
 func typeIsError(typ reflect.Type) bool {
 	return typ.Implements(errorType)
 }
-
 // String satisfies the Stringer interface and returns the name of the Type.
+
 func (jt *Type) String() string {
+
 	return jt.name
 }
 
@@ -114,9 +108,10 @@ func (jt *Type) String() string {
 // executed until after time. data is the data associated with this particular
 // job and should have the same type as the first argument to the handler for this
 // Type.
-func (jt *Type) Schedule(priority int, time time.Time, data interface{}) (*Job, error) {
+func (jt *Type) Schedule(priority int, time time.Time, data ...interface{}) (*Job, error) {
 	// Encode the data
 	encodedData, err := jt.encodeData(data)
+
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +137,7 @@ func (jt *Type) Schedule(priority int, time time.Time, data interface{}) (*Job, 
 // data associated with this particular job and should have the same type as the first argument
 // to the handler for this Type. Every recurring execution of the job will use the
 // same data.
-func (jt *Type) ScheduleRecurring(priority int, time time.Time, freq time.Duration, data interface{}) (*Job, error) {
+func (jt *Type) ScheduleRecurring(priority int, time time.Time, freq time.Duration, data ...interface{}) (*Job, error) {
 	// Encode the data
 	encodedData, err := jt.encodeData(data)
 	if err != nil {
@@ -169,9 +164,15 @@ func (jt *Type) ScheduleRecurring(priority int, time time.Time, freq time.Durati
 // If it is, it encodes the data into a slice of bytes.
 func (jt *Type) encodeData(data interface{}) ([]byte, error) {
 	// Check the type of data
-	dataType := reflect.TypeOf(data)
-	if dataType != jt.dataType {
-		return nil, fmt.Errorf("jobs: provided data was not of the correct type.\nExpected %s for Type %s, but got %s", jt.dataType, jt, dataType)
+	handlerType := reflect.TypeOf(jt.handler)
+
+	for i, arg := range data.([]interface{}) {
+
+		handlerArgType := handlerType.In(i)
+		argType := reflect.TypeOf(arg)
+		if handlerArgType != argType && argType != reflect.PtrTo(handlerArgType) && reflect.PtrTo(argType) != handlerArgType {
+			return nil, fmt.Errorf("jobs: one of provided, args[%d], was not of the correct type.\nExpected %s, but got %s", i, handlerArgType.String(), argType.String())
+		}
 	}
 	// Encode the data
 	encodedData, err := encode(data)
