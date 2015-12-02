@@ -259,7 +259,8 @@ func (t *transaction) popNextJobs(n int, poolId string, handler replyHandler) {
 // The script will either mark the job as failed or queue it for retry depending on the number of
 // retries left.
 func (t *transaction) retryOrFailJob(job *Job, handler replyHandler) {
-	t.script(retryOrFailJobScript, redis.Args{job.id}, handler)
+	currentTime := fmt.Sprintf("%d", time.Now().UTC().UnixNano())
+	t.script(retryOrFailJobScript, redis.Args{job.id, currentTime}, handler)
 }
 
 // setStatus is a small function wrapper around setStatusScript.
