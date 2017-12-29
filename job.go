@@ -104,6 +104,15 @@ func (j *Job) PoolId() string {
 	return j.poolId
 }
 
+// TypeName returns the type name of the job
+// Otherwise, it returns an empty string.
+func (j *Job) TypeName() string {
+	if j.typ == nil {
+		return ""
+	}
+	return j.typ.name
+}
+
 // Duration returns how long the job took to execute with nanosecond
 // precision. I.e. the difference between j.Finished() and j.Started().
 // It returns a duration of zero if the job has not finished yet.
