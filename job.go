@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"time"
+	"strings"
 )
 
 // Job represents a discrete piece of work to be done by a worker.
@@ -345,9 +346,20 @@ func scanJob(reply interface{}, job *Job) error {
 			if err := scanString(fieldValue, &typeName); err != nil {
 				return err
 			}
+
 			Type, found := Types[typeName]
 			if !found {
-				return fmt.Errorf("jobs: In scanJob: Could not find Type with name = %s", typeName)
+				// workaround for integram
+				// trying to trim func path
+				pos := strings.LastIndex(typeName, "/")
+				if pos > -1 {
+					typeName = typeName[pos+1:]
+				}
+				Type, found = Types[typeName]
+
+				if !found {
+					return fmt.Errorf("jobs: In scanJob: Could not find Type with name = %s", typeName)
+				}
 			}
 			job.typ = Type
 		case "time":
