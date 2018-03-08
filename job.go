@@ -358,7 +358,20 @@ func scanJob(reply interface{}, job *Job) error {
 				Type, found = Types[typeName]
 
 				if !found {
-					return fmt.Errorf("jobs: In scanJob: Could not find Type with name = %s", typeName)
+					pos = strings.LastIndex(typeName, ".")
+					if pos > -1 {
+						typeSuffix := typeName[pos:]
+						for tn, t := range Types{
+							if strings.HasSuffix(tn, typeSuffix){
+								Type = t
+								found = true
+								break
+							}
+						}
+					}
+					if !found {
+						return fmt.Errorf("jobs: In scanJob: Could not find Type with name = %s", typeName)
+					}
 				}
 			}
 			job.typ = Type
