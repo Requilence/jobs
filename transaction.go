@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"time"
+	"log"
 )
 
 // transaction is an abstraction layer around a redis transaction.
@@ -160,7 +161,9 @@ func newScanJobsHandler(jobs *[]*Job) replyHandler {
 		for _, fields := range values {
 			job := &Job{}
 			if err := scanJob(fields, job); err != nil {
-				return err
+				// log error so the whole app will not Panicing in case single job processing error
+				log.Println(err.Error())
+				continue
 			}
 			(*jobs) = append((*jobs), job)
 		}
