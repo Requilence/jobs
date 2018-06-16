@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"log"
 )
 
 // Pool is a pool of workers. Pool will query the database for queued jobs
@@ -435,9 +436,6 @@ func (p *Pool) Wait() error {
 // it finds any, sends them through the jobs channel for execution
 // by some worker.
 func (p *Pool) queryLoop() error {
-	if err := p.sendNextJobs(p.config.BatchSize); err != nil {
-		return err
-	}
 	for {
 		minWait := time.After(p.config.MinWait)
 		select {
@@ -447,7 +445,8 @@ func (p *Pool) queryLoop() error {
 			return nil
 		case <-minWait:
 			if err := p.sendNextJobs(p.config.BatchSize); err != nil {
-				return err
+				log.Printf("sendNextJobs error: %s", err.Error())
+				continue
 			}
 		}
 	}
